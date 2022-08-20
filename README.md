@@ -1,3 +1,3 @@
 # DLMS Wrapper Commander
 
-Doing management jobs over the DLMS wrapper transport
+Doing management jobs over a DLMS wrapper transport
