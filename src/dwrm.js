@@ -3,6 +3,7 @@
 
 const fs = require('fs')
 const dump = require('buffer-hexdump');
+const MemoryMap = require('nrf-intel-hex');
 const SocketIo = require('./socketio');
 const PacketBuffer = require('./packet-buffer');
 
@@ -42,6 +43,12 @@ const argv = require('yargs/yargs')(process.argv.slice(2))
         type: 'number',
         default: DEFAULT_RESPONSE_TIMEOUT,
     })
+    .option('hex-file', {
+        alias: 'f',
+        describe: 'save memory content to an intel-hex',
+        nargs: 1,
+        type: 'string',
+    })
     .argv;
 
 
@@ -56,6 +63,18 @@ const sio = new SocketIo({
     interFrameTimeout: argv.interFrameTimeout,
 });
 
+function bufferToIntelHex(startAddr, buff, filename) {
+    const blocks = new MemoryMap();
+    blocks.set(startAddr, new Uint8Array(buff.buffer));
+    const hex = blocks.asHexString();
+    if (filename)
+        fs.writeFile(filename, hex, () => {
+            console.log(`saved to ${filename}`);
+        });
+    else
+        console.log(hex);
+}
+
 (async () => {
     try {
         await sio.open(argv.host, argv.port);
@@ -66,7 +85,7 @@ const sio = new SocketIo({
         const body = new PacketBuffer();
         body.writeByte(CMD_READMEM);
         body.writeUint32(addr);
-        body.writeUint16(len);
+        body.writeUint32(len);
         request.writeUint16(body.length);
         request.writeBuffer(body.buffer);
 
@@ -82,11 +101,12 @@ const sio = new SocketIo({
             resp.writeBuffer(recv);
         }
         console.log(`receved ${resp.length} bytes`);
+        if (resp.length != len) throw new Error('insufficient data');
+        bufferToIntelHex(addr, resp.buffer, argv.hexFile);
 
         sio.close();
     } catch (error) {
-        console.error(error.message);
-        console.error(error.stack);
+        console.error(error);
         process.exit(1);
     }
 })();
