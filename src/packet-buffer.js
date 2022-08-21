@@ -7,9 +7,8 @@ const DEFAULT_OPTS = {
 };
 
 function PacketBuffer(options) {
-    options = Object.assign({}, options, DEFAULT_OPTS);
-
-    this._buf = Buffer.alloc(options.size || DEFAULT_BUF_SZ);
+    this._options = Object.assign({}, options, DEFAULT_OPTS);
+    this._buf = Buffer.alloc(this._options.size || DEFAULT_BUF_SZ);
     this._size = this._buf.length;
     this._offset = 0;
 }

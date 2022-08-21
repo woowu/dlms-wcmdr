@@ -8,6 +8,7 @@ const PacketBuffer = require('./packet-buffer');
 
 const MAGIC = 0xceaddeac;
 const CMD_READMEM = 0x81;
+const DEFAULT_RESPONSE_TIMEOUT = 2.5; /* secs */
 
 const argv = require('yargs/yargs')(process.argv.slice(2))
     .usage('$0 [-h host] [-p port] <address> <length>')
@@ -28,11 +29,18 @@ const argv = require('yargs/yargs')(process.argv.slice(2))
         default: 4059,
     })
     .option('inter-frame-timeout', {
-        alias: 't',
+        alias: 'T',
         describe: 'inter-frame-timeout',
         nargs: 1,
         type: 'number',
         default: 500,
+    })
+    .option('response-timeout', {
+        alias: 't',
+        describe: 'response',
+        nargs: 1,
+        type: 'number',
+        default: DEFAULT_RESPONSE_TIMEOUT,
     })
     .argv;
 
@@ -49,21 +57,36 @@ const sio = new SocketIo({
 });
 
 (async () => {
-    await sio.open(argv.host, argv.port);
+    try {
+        await sio.open(argv.host, argv.port);
 
-    const request = new PacketBuffer();
-    request.writeUint16(1);
-    request.writeUint32(MAGIC);
-    const body = new PacketBuffer();
-    body.writeByte(CMD_READMEM);
-    body.writeUint32(addr);
-    body.writeUint16(len);
-    request.writeBuffer(body.buffer);
+        const request = new PacketBuffer();
+        request.writeUint16(1);
+        request.writeUint32(MAGIC);
+        const body = new PacketBuffer();
+        body.writeByte(CMD_READMEM);
+        body.writeUint32(addr);
+        body.writeUint16(len);
+        request.writeUint16(body.length);
+        request.writeBuffer(body.buffer);
 
-    sio.write(request.buffer);
-    console.log(dump(request.buffer));
-    const resp = await sio.read(5000);
-    console.log(dump(resp));
+        sio.write(request.buffer);
+        console.log('send:\n' + dump(request.buffer));
 
-    sio.close();
+        const resp = new PacketBuffer();
+        var recv;
+        while(true) {
+            recv = await sio.read(argv.responseTimeout * 1000);
+            if (! recv) break;
+            console.log('recv:\n' + dump(recv));
+            resp.writeBuffer(recv);
+        }
+        console.log(`receved ${resp.length} bytes`);
+
+        sio.close();
+    } catch (error) {
+        console.error(error.message);
+        console.error(error.stack);
+        process.exit(1);
+    }
 })();

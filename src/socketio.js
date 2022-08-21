@@ -23,10 +23,12 @@ function SocketIo(options) {
         }
 
         if (this._frameTimer) clearTimeout(this._frameTimer);
-        this._frameTimer = setTimeout((function() {
-            if (this._readWaiter) this._readWaiter(this._inBuf.buffer);
-            this._inBuf = new PacketBuffer();
-        }).bind(this), this._interFrameTimeout);
+        this._frameTimer = setTimeout(() => {
+            if (this._readWaiter) {
+                this._readWaiter(this._inBuf.buffer);
+                this._inBuf = new PacketBuffer();
+            }
+        }, this._interFrameTimeout);
 
         this._inBuf.writeBuffer(data);
     });
@@ -38,7 +40,7 @@ Object.defineProperty(PacketBuffer.prototype, 'opened', {
     }
 });
 
-SocketIo.prototype.open = async function(host, port) {
+SocketIo.prototype.open = function(host, port) {
     if (this._opened) throw new Error('socket has already opened');
 
     return new Promise(resolve => {
@@ -61,7 +63,7 @@ SocketIo.prototype.open = async function(host, port) {
     });
 };
 
-SocketIo.prototype.close = async function() {
+SocketIo.prototype.close = function() {
     if (! this._opened) throw new Error('socket is not opened');
 
     return new Promise(resolve => {
@@ -71,7 +73,7 @@ SocketIo.prototype.close = async function() {
     });
 };
 
-SocketIo.prototype.write = async function(data) {
+SocketIo.prototype.write = function(data) {
     if (! this._opened) throw new Error('socket has not opened');
 
     this._socket.write(data);
@@ -80,15 +82,16 @@ SocketIo.prototype.write = async function(data) {
     });
 };
 
-SocketIo.prototype.read = async function(timeout) {
+SocketIo.prototype.read = function(timeout) {
     if (! this._opened) throw new Error('socket has not opened');
 
     return new Promise(resolve => {
         if (this._timer) clearTimeout(this._timer);
         this._readWaiter = resolve;
-        this._readTimer = setTimeout((function() {
-            if (! this._inBuf.length) resolve(this._inBuf.buffer);
-        }).bind(this), timeout);
+        if (timeout)
+            this._readTimer = setTimeout(() => {
+                resolve(null);
+            }, timeout);
     });
 };
 
