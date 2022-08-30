@@ -1,3 +1,4 @@
 # DLMS Wrapper Commander
 
-Doing management jobs over a DLMS wrapper transport
+Send customized commands over a DLMS wrapper transport. Used on an E355 meter
+remote DLMS/Wrapper port.
